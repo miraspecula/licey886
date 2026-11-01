@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Лицей П.И.Т.О.Н. № 886</title>
+  <style>
+    html, body {
+      margin: 0;
+      height: 100%;
+      background: #0e1424;
+      color: #f2e6c8;
+      font-family: "Segoe UI", sans-serif;
+      overflow: hidden;
+    }
+    #boot[hidden] { display: none; }
+    #boot {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 18px;
+      z-index: 2;
+    }
+    #boot h1 {
+      margin: 0;
+      font-weight: 500;
+      letter-spacing: 0.04em;
+      font-size: 28px;
+    }
+    #boot p { margin: 0; opacity: 0.85; }
+    #bar {
+      width: min(420px, 80vw);
+      height: 14px;
+      border: 2px solid #d8b04a;
+      background: #1f2a44;
+    }
+    #bar > div {
+      height: 100%;
+      width: 0;
+      background: #d8b04a;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+      outline: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="boot">
+    <h1>Лицей П.И.Т.О.Н. № 886</h1>
+    <p id="status">Загружаем игру…</p>
+    <div id="bar" aria-hidden="true"><div id="fill"></div></div>
+  </div>
+  <script src="wasm_exec.js"></script>
+  <script>
+    const statusEl = document.getElementById("status");
+    const fillEl = document.getElementById("fill");
+
+    function setProgress(got, total) {
+      if (total > 0) {
+        fillEl.style.width = Math.min(100, Math.round(got / total * 100)) + "%";
+        const mb = (got / 1048576).toFixed(1);
+        const all = (total / 1048576).toFixed(1);
+        statusEl.textContent = "Загружаем игру… " + mb + " из " + all + " МБ";
+      } else {
+        statusEl.textContent = "Загружаем игру… " + Math.round(got / 1048576) + " МБ";
+      }
+    }
+
+    function watchCanvas() {
+      const seen = () => {
+        const canvas = document.querySelector("canvas");
+        if (!canvas) return false;
+        document.getElementById("boot").hidden = true;
+        canvas.tabIndex = 0;
+        canvas.focus();
+        return true;
+      };
+      if (seen()) return;
+      const obs = new MutationObserver(() => { if (seen()) obs.disconnect(); });
+      obs.observe(document.body, { childList: true, subtree: true });
+    }
+
+    document.addEventListener("click", () => {
+      const canvas = document.querySelector("canvas");
+      if (canvas) canvas.focus();
+    });
+    window.addEventListener("keydown", (e) => {
+      if (e.key === " " || e.key.startsWith("Arrow")) e.preventDefault();
+    });
+
+    async function boot() {
+      const resp = await fetch("game.wasm");
+      if (!resp.ok) {
+        statusEl.textContent = "Не удалось скачать игру (" + resp.status + ").";
+        return;
+      }
+      const total = Number(resp.headers.get("Content-Length")) || 0;
+      const reader = resp.body.getReader();
+      const chunks = [];
+      let got = 0;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        chunks.push(value);
+        got += value.length;
+        setProgress(got, total);
+      }
+      const buf = new Uint8Array(got);
+      let off = 0;
+      for (const c of chunks) {
+        buf.set(c, off);
+        off += c.length;
+      }
+      statusEl.textContent = "Открываем двери лицея…";
+      fillEl.style.width = "100%";
+      const go = new Go();
+      const { instance } = await WebAssembly.instantiate(buf, go.importObject);
+      watchCanvas();
+      go.run(instance);
+    }
+
+    boot().catch((err) => {
+      statusEl.textContent = "Игра не запустилась. Обновите страницу.";
+      console.error(err);
+    });
+  </script>
+</body>
+</html>
