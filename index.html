@@ -49,25 +49,9 @@
       touch-action: none;
       outline: none;
     }
-    #turn[hidden] { display: none; }
-    #turn {
-      position: fixed;
-      inset: 0;
-      z-index: 6;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #0e1424;
-      color: #f2e6c8;
-      text-align: center;
-      padding: 24px;
-      font-size: 22px;
-      line-height: 1.4;
-    }
   </style>
 </head>
 <body>
-  <div id="turn" hidden>Поверни телефон горизонтально</div>
   <div id="boot">
     <h1>Лицей П.И.Т.О.Н. № 886</h1>
     <p id="status">Загружаем игру…</p>
@@ -103,13 +87,6 @@
       obs.observe(document.body, { childList: true, subtree: true });
     }
 
-    function orient() {
-      const narrow = window.innerWidth < 900 && window.innerHeight > window.innerWidth;
-      document.getElementById("turn").hidden = !narrow;
-    }
-    window.addEventListener("resize", orient);
-    window.addEventListener("orientationchange", orient);
-    orient();
     function fitCanvas() {
       const canvas = document.querySelector("canvas");
       if (!canvas) return;
